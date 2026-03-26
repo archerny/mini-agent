@@ -1,0 +1,3 @@
+module github.com/archerny/mini-agent
+
+go 1.24.0
