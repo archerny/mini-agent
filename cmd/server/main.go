@@ -2,33 +2,51 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
 	"github.com/archerny/mini-agent/internal/agent"
+	"github.com/archerny/mini-agent/internal/api"
 	"github.com/archerny/mini-agent/internal/protocol"
 	"github.com/archerny/mini-agent/internal/runtime"
+)
+
+const (
+	defaultAddr = ":8080"
 )
 
 func main() {
 	fmt.Println("🚀 mini-agent — AI Agent Runtime")
 	fmt.Println("═══════════════════════════════════════════")
-	fmt.Println("M1: Minimal Runtime — 2 Agents exchanging messages")
 	fmt.Println()
 
 	// Create the runtime engine.
 	engine := runtime.NewEngine()
 
-	// Subscribe to the event stream — print all events.
-	engine.EventStream.Subscribe(func(evt *protocol.Event) {
-		data, _ := json.Marshal(evt)
-		fmt.Printf("  [event #%d] %s\n", evt.Sequence, string(data))
-	})
+	// Create HTTP router (REST + WebSocket).
+	router := api.NewRouter(engine)
+
+	// Determine listen address.
+	addr := os.Getenv("PORT")
+	if addr == "" {
+		addr = defaultAddr
+	} else {
+		addr = ":" + addr
+	}
+
+	// Create HTTP server.
+	server := &http.Server{
+		Addr:         addr,
+		Handler:      router,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		IdleTimeout:  60 * time.Second,
+	}
 
 	// Create a root context with signal handling.
 	ctx, cancel := context.WithCancel(context.Background())
@@ -41,14 +59,45 @@ func main() {
 		<-sigCh
 		fmt.Println("\n🛑 Received shutdown signal...")
 		cancel()
+
+		// Graceful HTTP shutdown.
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer shutdownCancel()
+		if err := server.Shutdown(shutdownCtx); err != nil {
+			log.Printf("HTTP server shutdown error: %v", err)
+		}
 	}()
 
-	// --- Demo: Spawn 2 agents that exchange messages ---
+	// Start the demo scenario in the background.
+	go runDemoScenario(ctx, engine)
 
-	fmt.Println("📡 Spawning agents...")
+	// Start HTTP server.
+	fmt.Printf("🌐 HTTP server listening on %s\n", addr)
+	fmt.Printf("   REST API:  http://localhost%s/api/agents\n", addr)
+	fmt.Printf("   WebSocket: ws://localhost%s/ws/events\n", addr)
 	fmt.Println()
 
-	// Agent A: "researcher" — receives requests, replies with a research result.
+	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		log.Fatalf("HTTP server error: %v", err)
+	}
+
+	// Wait for graceful shutdown.
+	fmt.Println("🛑 Shutting down agents...")
+	engine.Shutdown(ctx)
+	fmt.Println("✅ Server stopped.")
+}
+
+// ---------------------------------------------------------------------------
+// Demo Scenario — runs in the background, spawns agents and generates traffic
+// ---------------------------------------------------------------------------
+
+func runDemoScenario(ctx context.Context, engine *runtime.Engine) {
+	// Wait a moment for the HTTP server to start.
+	time.Sleep(500 * time.Millisecond)
+
+	fmt.Println("📡 Demo: Spawning agents...")
+
+	// Spawn researcher agent.
 	agentA, err := engine.AgentManager.Spawn(ctx, agent.Config{
 		ID:           "agent-researcher",
 		Name:         "researcher",
@@ -57,10 +106,11 @@ func main() {
 		Handler:      researcherHandler,
 	})
 	if err != nil {
-		log.Fatalf("Failed to spawn researcher: %v", err)
+		log.Printf("[demo] Failed to spawn researcher: %v", err)
+		return
 	}
 
-	// Agent B: "writer" — sends a request to researcher, receives response, writes output.
+	// Spawn writer agent.
 	agentB, err := engine.AgentManager.Spawn(ctx, agent.Config{
 		ID:           "agent-writer",
 		Name:         "writer",
@@ -69,48 +119,35 @@ func main() {
 		Handler:      writerHandler,
 	})
 	if err != nil {
-		log.Fatalf("Failed to spawn writer: %v", err)
+		log.Printf("[demo] Failed to spawn writer: %v", err)
+		return
 	}
 
-	fmt.Println()
-	fmt.Println("💬 Starting message exchange...")
-	fmt.Println("───────────────────────────────────────────")
-	fmt.Println()
+	fmt.Println("📡 Demo: Agents spawned. Starting message loop...")
 
-	// Writer sends a request to researcher.
-	request := protocol.NewRequest(
-		agentB.ID(), agentA.ID(),
-		protocol.TextPayload("Please research the topic: 'Benefits of multi-agent systems'"),
-	)
-	if err := engine.MessageBus.Send(request); err != nil {
-		log.Fatalf("Failed to send request: %v", err)
+	// Periodically generate messages to keep the demo alive.
+	ticker := time.NewTicker(3 * time.Second)
+	defer ticker.Stop()
+
+	round := 0
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			round++
+			topic := fmt.Sprintf("Research topic #%d: Benefits of multi-agent systems (round %d)", round, round)
+
+			// Writer sends a request to researcher.
+			request := protocol.NewRequest(
+				agentB.ID(), agentA.ID(),
+				protocol.TextPayload(topic),
+			)
+			if err := engine.MessageBus.Send(request); err != nil {
+				log.Printf("[demo] Failed to send request: %v", err)
+			}
+		}
 	}
-
-	// Wait a bit for messages to flow.
-	time.Sleep(500 * time.Millisecond)
-
-	fmt.Println()
-	fmt.Println("───────────────────────────────────────────")
-	fmt.Println("📊 Runtime Statistics:")
-	stats := engine.Stats()
-	statsJSON, _ := json.MarshalIndent(stats, "  ", "  ")
-	fmt.Printf("  %s\n", string(statsJSON))
-
-	fmt.Println()
-	fmt.Println("🌐 Network Topology:")
-	topo := engine.Topology()
-	topoJSON, _ := json.MarshalIndent(topo, "  ", "  ")
-	fmt.Printf("  %s\n", string(topoJSON))
-
-	fmt.Println()
-	fmt.Println("🛑 Shutting down...")
-	engine.Shutdown(ctx)
-
-	fmt.Println()
-	fmt.Println("✅ M1 demo complete!")
-
-	_ = agentA
-	_ = agentB
 }
 
 // ---------------------------------------------------------------------------

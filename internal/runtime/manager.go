@@ -82,12 +82,17 @@ func (am *AgentManager) ShutdownAgent(id string, reason string) error {
 		return fmt.Errorf("agent %q not found", id)
 	}
 
-	if err := a.Shutdown(reason); err != nil {
-		return err
+	// If the agent is already shutdown (e.g., context cancelled), skip the
+	// Shutdown call but still clean up registration and emit events.
+	if a.State() == protocol.StateShutdown {
+		<-a.Done()
+	} else {
+		if err := a.Shutdown(reason); err != nil {
+			return err
+		}
+		// Wait for executor to finish.
+		<-a.Done()
 	}
-
-	// Wait for executor to finish.
-	<-a.Done()
 
 	// Unregister.
 	am.messageBus.UnregisterAgent(id)
