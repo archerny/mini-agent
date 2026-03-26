@@ -1,10 +1,21 @@
 // ---------------------------------------------------------------------------
-// App — M3a Basic Dashboard layout
+// App — M3b Advanced Visualization layout
+//
+// Architecture:
+// ┌─────────────────────────────────────────┐
+// │            DashboardBar                 │
+// ├───────────────────┬─────────────────────┤
+// │  Network Topology │  Message Timeline   │
+// │     (60%)         │    (40%)            │
+// ├───────────────────┴─────────────────────┤
+// │  Agent Detail Panel (if selected)       │
+// └─────────────────────────────────────────┘
 // ---------------------------------------------------------------------------
 
 import { DashboardBar } from "@/components/DashboardBar.tsx";
-import { AgentList } from "@/components/AgentList.tsx";
+import { NetworkTopology } from "@/components/topology/NetworkTopology.tsx";
 import { MessageLog } from "@/components/MessageLog.tsx";
+import { AgentDetailPanel } from "@/components/AgentDetailPanel.tsx";
 import { useWebSocket } from "@/hooks/useWebSocket.ts";
 import { useAgentStore } from "@/stores/agentStore.ts";
 
@@ -13,6 +24,7 @@ function App() {
   useWebSocket();
 
   const connectionStatus = useAgentStore((s) => s.connectionStatus);
+  const selectedAgentId = useAgentStore((s) => s.selectedAgentId);
 
   return (
     <div
@@ -23,6 +35,7 @@ function App() {
         background: "#0D1117",
         color: "#E6EDF3",
         fontFamily: "'Inter', system-ui, sans-serif",
+        overflow: "hidden",
       }}
     >
       {/* Disconnected banner */}
@@ -35,6 +48,7 @@ function App() {
             fontSize: 12,
             textAlign: "center",
             borderBottom: "1px solid #D2992240",
+            flexShrink: 0,
           }}
         >
           ⚠️ Real-time connection lost. Reconnecting…
@@ -44,35 +58,34 @@ function App() {
       {/* Top: Dashboard Bar */}
       <DashboardBar />
 
-      {/* Main: Left (Agents) + Right (Messages) */}
+      {/* Middle: Topology (60%) + Messages (40%) */}
       <div
         style={{
           display: "flex",
           flex: 1,
-          minHeight: 0, // allow flex children to shrink
+          minHeight: 0,
         }}
       >
-        {/* Left panel: Agent list (40%) */}
-        <aside
+        {/* Left: Network Topology (60%) */}
+        <div
           style={{
-            width: "40%",
-            minWidth: 280,
-            maxWidth: 480,
+            width: "60%",
+            minWidth: 400,
             borderRight: "1px solid #30363D",
-            overflowY: "auto",
-            background: "#0D1117",
+            position: "relative",
           }}
-          aria-label="Agent list"
+          aria-label="Network topology"
         >
-          <AgentList />
-        </aside>
+          <NetworkTopology />
+        </div>
 
-        {/* Right panel: Message log (60%) */}
+        {/* Right: Message Log (40%) */}
         <main
           style={{
             flex: 1,
             minWidth: 0,
-            background: "#0D1117",
+            display: "flex",
+            flexDirection: "column",
           }}
           aria-label="Message timeline"
           role="log"
@@ -80,6 +93,9 @@ function App() {
           <MessageLog />
         </main>
       </div>
+
+      {/* Bottom: Agent Detail Panel (when agent is selected) */}
+      {selectedAgentId && <AgentDetailPanel />}
     </div>
   );
 }

@@ -9,10 +9,12 @@ import type {
   Event,
   Stats,
   Topology,
+  TopologyEdge,
   EventType,
   AgentSpawnedData,
   AgentStateChangedData,
   AgentMessageSentData,
+  TopologyChangedData,
 } from "@/protocol/types.ts";
 
 // ---------------------------------------------------------------------------
@@ -131,6 +133,34 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
           newMessages.splice(0, newMessages.length - MAX_MESSAGES);
         }
         updates.messages = newMessages;
+
+        // Update topology edges in real-time
+        const msg = data.message;
+        if (msg.to !== "*") {
+          const newEdges: TopologyEdge[] = [...state.topology.edges];
+          const existingIdx = newEdges.findIndex(
+            (e) => e.from === msg.from && e.to === msg.to,
+          );
+          if (existingIdx >= 0) {
+            const existing = newEdges[existingIdx]!;
+            newEdges[existingIdx] = { ...existing, message_count: existing.message_count + 1 };
+          } else {
+            newEdges.push({ from: msg.from, to: msg.to, message_count: 1 });
+          }
+          updates.topology = { ...state.topology, edges: newEdges };
+        }
+        break;
+      }
+
+      case "network.topology_changed": {
+        const data = event.data as TopologyChangedData;
+        // On topology change, we could do incremental updates, but for MVP
+        // just reload full topology on the next snapshot.
+        // For agent_joined/agent_left we already handle via spawned/shutdown.
+        if (data.change_type === "link_created" || data.change_type === "link_removed") {
+          // Trigger a topology re-fetch
+          get().loadSnapshot().catch(console.error);
+        }
         break;
       }
 
