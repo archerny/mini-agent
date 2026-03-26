@@ -5,6 +5,7 @@
 import { memo } from "react";
 import { Handle, Position, type NodeProps, type Node } from "@xyflow/react";
 import type { AgentState } from "@/protocol/types.ts";
+import { STATUS_COLORS } from "@/protocol/constants.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -21,18 +22,8 @@ export interface AgentNodeData {
 export type AgentNodeType = Node<AgentNodeData, "agent">;
 
 // ---------------------------------------------------------------------------
-// Status style map
+// Status glow map (only busy/error have glow)
 // ---------------------------------------------------------------------------
-
-const STATUS_COLORS: Record<AgentState, string> = {
-  spawning: "#8B949E",
-  ready: "#8B949E",
-  idle: "#58A6FF",
-  busy: "#3FB950",
-  completed: "#A371F7",
-  error: "#F85149",
-  shutdown: "#484F58",
-};
 
 const STATUS_GLOW: Record<string, string> = {
   busy: "0 0 16px rgba(63, 185, 80, 0.5)",

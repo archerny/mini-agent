@@ -13,6 +13,7 @@ import (
 	"github.com/archerny/mini-agent/internal/api"
 	"github.com/archerny/mini-agent/internal/demo"
 	"github.com/archerny/mini-agent/internal/runtime"
+	"github.com/archerny/mini-agent/web"
 )
 
 const (
@@ -27,8 +28,22 @@ func main() {
 	// Create the runtime engine.
 	engine := runtime.NewEngine()
 
-	// Create HTTP router (REST + WebSocket).
-	router := api.NewRouter(engine)
+	// Create the demo scenario (passed to router for pause/resume control).
+	scenario := &demo.ResearchPipeline{}
+
+	// Create a root context with signal handling.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Create HTTP router (REST + WebSocket + Demo control + Embedded frontend).
+	frontendFS := web.DistFS()
+	router := api.NewRouter(engine, scenario, ctx, frontendFS)
+
+	if frontendFS != nil {
+		fmt.Println("📦 Embedded frontend detected — serving SPA from binary")
+	} else {
+		fmt.Println("🔧 No embedded frontend — run `make dev-web` for frontend dev server")
+	}
 
 	// Determine listen address.
 	addr := os.Getenv("PORT")
@@ -47,10 +62,6 @@ func main() {
 		IdleTimeout:  60 * time.Second,
 	}
 
-	// Create a root context with signal handling.
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	// Handle SIGINT / SIGTERM.
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
@@ -68,7 +79,6 @@ func main() {
 	}()
 
 	// Start the demo scenario in the background.
-	scenario := &demo.ResearchPipeline{}
 	go func() {
 		fmt.Printf("📡 Demo: %s\n", scenario.Name())
 		if err := scenario.Run(ctx, engine); err != nil {

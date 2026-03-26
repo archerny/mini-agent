@@ -16,6 +16,7 @@ import { DashboardBar } from "@/components/DashboardBar.tsx";
 import { NetworkTopology } from "@/components/topology/NetworkTopology.tsx";
 import { MessageLog } from "@/components/MessageLog.tsx";
 import { AgentDetailPanel } from "@/components/AgentDetailPanel.tsx";
+import { ControlPanel } from "@/components/ControlPanel.tsx";
 import { useWebSocket } from "@/hooks/useWebSocket.ts";
 import { useAgentStore } from "@/stores/agentStore.ts";
 
@@ -93,6 +94,9 @@ function App() {
           <MessageLog />
         </main>
       </div>
+
+      {/* Bottom: Control Panel */}
+      <ControlPanel />
 
       {/* Bottom: Agent Detail Panel (when agent is selected) */}
       {selectedAgentId && <AgentDetailPanel />}

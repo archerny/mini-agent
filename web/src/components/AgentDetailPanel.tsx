@@ -3,27 +3,7 @@
 // ---------------------------------------------------------------------------
 
 import { useAgentStore } from "@/stores/agentStore.ts";
-import type { AgentState } from "@/protocol/types.ts";
-
-const STATUS_COLORS: Record<AgentState, string> = {
-  spawning: "#8B949E",
-  ready: "#8B949E",
-  idle: "#58A6FF",
-  busy: "#3FB950",
-  completed: "#A371F7",
-  error: "#F85149",
-  shutdown: "#484F58",
-};
-
-const STATUS_LABELS: Record<AgentState, string> = {
-  spawning: "Spawning",
-  ready: "Ready",
-  idle: "Idle",
-  busy: "Active",
-  completed: "Completed",
-  error: "Error",
-  shutdown: "Shutdown",
-};
+import { STATUS_COLORS, STATUS_LABELS } from "@/protocol/constants.ts";
 
 export function AgentDetailPanel() {
   const agents = useAgentStore((s) => s.agents);

@@ -52,7 +52,7 @@ export function NetworkTopology() {
   const selectedAgentId = useAgentStore((s) => s.selectedAgentId);
   const selectAgent = useAgentStore((s) => s.selectAgent);
 
-  const [nodes, setNodes, onNodesChange] = useNodesState<Node<AgentNodeData>>([]);
+  const [nodes, setNodes, onNodesChangeBase] = useNodesState<Node<AgentNodeData>>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge<AnimatedEdgeData>>([]);
 
   // Track recently active edges (last 3 seconds)
@@ -81,20 +81,42 @@ export function NetworkTopology() {
   // -------------------------------------------------------------------------
   const agentList = useMemo(() => Array.from(agents.values()), [agents]);
 
+  // Track which nodes have been positioned (to avoid resetting dragged positions).
+  const nodePositions = useRef<Map<string, { x: number; y: number }>>(new Map());
+  const prevAgentCount = useRef(0);
+
   const updateGraph = useCallback(() => {
     if (agentList.length === 0) {
       setNodes([]);
       setEdges([]);
+      nodePositions.current.clear();
+      prevAgentCount.current = 0;
       return;
     }
 
-    // Use stored node positions if they exist, otherwise compute circular layout
-    const positions = circularLayout(agentList.length, 300, 250, Math.max(150, agentList.length * 50));
+    // Recalculate layout only when agent count changes (new agent added/removed).
+    const needsLayout = agentList.length !== prevAgentCount.current;
+    prevAgentCount.current = agentList.length;
 
-    const newNodes: Node<AgentNodeData>[] = agentList.map((agent, i) => ({
+    if (needsLayout) {
+      // Compute circular layout for all agents, but only apply to NEW nodes.
+      const positions = circularLayout(agentList.length, 300, 250, Math.max(150, agentList.length * 50));
+      agentList.forEach((agent, i) => {
+        if (!nodePositions.current.has(agent.id)) {
+          nodePositions.current.set(agent.id, positions[i] ?? { x: 0, y: 0 });
+        }
+      });
+      // Remove positions for agents that no longer exist.
+      const currentIds = new Set(agentList.map((a) => a.id));
+      for (const id of nodePositions.current.keys()) {
+        if (!currentIds.has(id)) nodePositions.current.delete(id);
+      }
+    }
+
+    const newNodes: Node<AgentNodeData>[] = agentList.map((agent) => ({
       id: agent.id,
       type: "agent",
-      position: positions[i] ?? { x: 0, y: 0 },
+      position: nodePositions.current.get(agent.id) ?? { x: 0, y: 0 },
       data: {
         name: agent.name,
         role: agent.role,
@@ -160,6 +182,19 @@ export function NetworkTopology() {
     }, 1000);
     return () => clearInterval(timer);
   }, [updateGraph]);
+
+  // Wrap onNodesChange to persist dragged positions.
+  const onNodesChange = useCallback(
+    (changes: Parameters<typeof onNodesChangeBase>[0]) => {
+      onNodesChangeBase(changes);
+      for (const change of changes) {
+        if (change.type === "position" && change.position && change.dragging) {
+          nodePositions.current.set(change.id, { x: change.position.x, y: change.position.y });
+        }
+      }
+    },
+    [onNodesChangeBase],
+  );
 
   // Handle node click → select agent
   const onNodeClick = useCallback(

@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"sync/atomic"
 	"time"
 
 	"github.com/archerny/mini-agent/internal/agent"
@@ -49,7 +50,26 @@ type Scenario interface {
 // ---------------------------------------------------------------------------
 
 // ResearchPipeline implements a multi-agent research report workflow.
-type ResearchPipeline struct{}
+type ResearchPipeline struct {
+	paused int32 // atomic: 0 = running, 1 = paused
+}
+
+// Pause pauses the demo scenario. No new rounds will start.
+func (rp *ResearchPipeline) Pause() {
+	atomic.StoreInt32(&rp.paused, 1)
+	log.Println("[demo] paused")
+}
+
+// Resume resumes the demo scenario.
+func (rp *ResearchPipeline) Resume() {
+	atomic.StoreInt32(&rp.paused, 0)
+	log.Println("[demo] resumed")
+}
+
+// IsPaused returns true if the demo is paused.
+func (rp *ResearchPipeline) IsPaused() bool {
+	return atomic.LoadInt32(&rp.paused) == 1
+}
 
 // Name returns the scenario name.
 func (rp *ResearchPipeline) Name() string {
@@ -109,6 +129,9 @@ func (rp *ResearchPipeline) Run(ctx context.Context, engine *runtime.Engine) err
 		case <-ctx.Done():
 			return nil
 		case <-ticker.C:
+			if rp.IsPaused() {
+				continue
+			}
 			round++
 			topic := topics[round%len(topics)]
 			go runResearchRound(ctx, engine, agents, round, topic)

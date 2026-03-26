@@ -1,11 +1,16 @@
-.PHONY: all build test run clean dev
+.PHONY: all build build-web build-all test run clean dev
 
-# Build everything
-all: build
-
-# Build Go backend
+# Build Go backend only (no embedded frontend)
 build:
 	go build -o bin/mini-agent ./cmd/server
+
+# Build frontend
+build-web:
+	cd web && npm run build
+
+# Build single binary with embedded frontend
+build-all: build-web
+	go build -tags embedfrontend -o bin/mini-agent ./cmd/server
 
 # Run Go tests
 test:
@@ -13,6 +18,10 @@ test:
 
 # Run the server (backend only)
 run: build
+	./bin/mini-agent
+
+# Run single binary with embedded frontend
+run-all: build-all
 	./bin/mini-agent
 
 # Run frontend dev server
