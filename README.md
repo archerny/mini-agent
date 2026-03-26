@@ -55,6 +55,7 @@ mini-agent/
 │   ├── runtime/                # MessageBus, EventStream (M1)
 │   ├── api/                    # REST + WebSocket (M2)
 │   └── demo/                   # Demo scenarios (M4)
+│       └── scenario.go         # Research Pipeline — 5-agent collaboration
 ├── web/                        # React frontend
 │   └── src/
 │       ├── protocol/types.ts   # TypeScript protocol types (mirrors Go)
@@ -83,14 +84,39 @@ make test
 make typecheck
 ```
 
+## Demo Scenario
+
+The built-in demo runs a **Research Pipeline** with 5 agents collaborating:
+
+| Agent | Role | Capabilities |
+|-------|------|-------------|
+| **coordinator** | Project Coordinator | orchestrate, delegate, aggregate |
+| **researcher** | Research Agent | web_search, analyze, summarize |
+| **writer** | Writer Agent | write, format, revise |
+| **reviewer** | Reviewer Agent | review, critique, approve |
+| **publisher** | Publisher Agent | publish, distribute, archive |
+
+**Collaboration flow:**
+```
+coordinator ──request──► researcher ──response──► coordinator
+coordinator ──request──► writer     ──response──► coordinator
+coordinator ──request──► reviewer   ──response──► coordinator
+coordinator ──request──► publisher  ──response──► coordinator
+reviewer    ──request──► writer     (feedback loop, every 3rd round)
+researcher  ──message──► writer     (data sharing, every 2nd round)
+publisher   ──broadcast──► *        (completion announcement)
+```
+
+Every 5 seconds a new research round starts with a rotating topic. The topology view shows all agents, their real-time state changes, and message flow with particle animations.
+
 ## Milestones
 
 - [x] **M0: Protocol Spec** — Protocol type definitions (Go + TypeScript)
-- [ ] **M1: Minimal Runtime** — 2 agents exchanging messages
-- [ ] **M2: WebSocket Bridge** — Frontend receives real-time events
-- [ ] **M3a: Basic Dashboard** — Dark theme skeleton + agent list + message log
-- [ ] **M3b: Advanced Visualization** — Network topology + particle animations
-- [ ] **M4: Demo Scenario** — Multi-agent collaboration demo
+- [x] **M1: Minimal Runtime** — 2 agents exchanging messages
+- [x] **M2: WebSocket Bridge** — Frontend receives real-time events
+- [x] **M3a: Basic Dashboard** — Dark theme skeleton + agent list + message log
+- [x] **M3b: Advanced Visualization** — Network topology + particle animations
+- [x] **M4: Demo Scenario** — Multi-agent collaboration demo
 
 ## License
 
