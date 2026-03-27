@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"maps"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -183,9 +184,7 @@ func (mb *MessageBus) EdgeCounts() map[string]int {
 	mb.topologyMu.Lock()
 	defer mb.topologyMu.Unlock()
 	result := make(map[string]int, len(mb.edgeCounts))
-	for k, v := range mb.edgeCounts {
-		result[k] = v
-	}
+	maps.Copy(result, mb.edgeCounts)
 	return result
 }
 

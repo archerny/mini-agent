@@ -75,7 +75,7 @@ func TestEventStream_Unsubscribe(t *testing.T) {
 func TestEventStream_EventsSince(t *testing.T) {
 	es := NewEventStream()
 
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		es.Publish(protocol.NewAgentSpawnedEvent("a1", "test", "role", nil))
 	}
 
@@ -91,7 +91,7 @@ func TestEventStream_EventsSince(t *testing.T) {
 func TestEventStream_EventsSinceWithLimit(t *testing.T) {
 	es := NewEventStream()
 
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		es.Publish(protocol.NewAgentSpawnedEvent("a1", "test", "role", nil))
 	}
 
@@ -104,7 +104,7 @@ func TestEventStream_EventsSinceWithLimit(t *testing.T) {
 func TestEventStream_History(t *testing.T) {
 	es := NewEventStream()
 
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		es.Publish(protocol.NewAgentSpawnedEvent("a1", "test", "role", nil))
 	}
 
@@ -310,8 +310,7 @@ func TestAgentManager_AgentCards(t *testing.T) {
 
 func TestEngine_TwoAgentExchange(t *testing.T) {
 	engine := NewEngine()
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	// Track events.
 	var events []*protocol.Event

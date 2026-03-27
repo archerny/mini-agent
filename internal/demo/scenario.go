@@ -217,7 +217,7 @@ func spawnAgents(ctx context.Context, engine *runtime.Engine) (*agentSet, error)
 // Research round — one complete pipeline execution
 // ---------------------------------------------------------------------------
 
-func runResearchRound(ctx context.Context, engine *runtime.Engine, agents *agentSet, round int, topic string) {
+func runResearchRound(ctx context.Context, engine *runtime.Engine, _ *agentSet, round int, topic string) {
 	log.Printf("[demo] ═══ Round %d: %s ═══", round, topic)
 
 	// Phase 1: Coordinator → Researcher (request research)

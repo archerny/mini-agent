@@ -4,7 +4,10 @@
 // All components (Runtime, API, Frontend) are built around these types.
 package protocol
 
-import "time"
+import (
+	"slices"
+	"time"
+)
 
 // ---------------------------------------------------------------------------
 // Agent States
@@ -41,12 +44,7 @@ func CanTransition(from, to AgentState) bool {
 	if !ok {
 		return false
 	}
-	for _, t := range targets {
-		if t == to {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(targets, to)
 }
 
 // IsTerminal returns true if the state is a terminal state (no further transitions).
