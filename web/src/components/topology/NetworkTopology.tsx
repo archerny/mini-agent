@@ -175,10 +175,18 @@ export function NetworkTopology() {
     updateGraph();
   }, [updateGraph]);
 
-  // Refresh active state periodically
+  // Refresh active edge state periodically (only re-render when active edges change)
   useEffect(() => {
     const timer = setInterval(() => {
-      updateGraph();
+      const now = Date.now();
+      let changed = false;
+      for (const [key, ts] of recentMessages.current.entries()) {
+        if (now - ts > 3000) {
+          recentMessages.current.delete(key);
+          changed = true;
+        }
+      }
+      if (changed) updateGraph();
     }, 1000);
     return () => clearInterval(timer);
   }, [updateGraph]);

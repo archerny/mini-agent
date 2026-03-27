@@ -199,6 +199,11 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
         fetch("/api/messages?limit=100"),
       ]);
 
+      if (!agentsRes.ok || !statsRes.ok || !topologyRes.ok || !messagesRes.ok) {
+        console.error("[store] Snapshot API returned error status");
+        return;
+      }
+
       const agentCards: AgentCard[] = await agentsRes.json();
       const stats: Stats = await statsRes.json();
       const topology: Topology = await topologyRes.json();

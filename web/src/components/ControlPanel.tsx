@@ -135,16 +135,19 @@ function SendMessageForm() {
   const [content, setContent] = useState("");
   const [status, setStatus] = useState<string | null>(null);
 
+  const needsTo = msgType !== "agent.broadcast";
+  const canSend = !!from && !!content && (!needsTo || !!to);
+
   const send = async () => {
-    if (!from || !content) return;
+    if (!canSend) return;
     setStatus("sending...");
     try {
-      const res = await apiClient.sendMessage({ type: msgType, from, to: msgType === "agent.broadcast" ? "*" : to, content });
+      const res = await apiClient.sendMessage({ type: msgType, from, to: needsTo ? to : "*", content });
       setStatus(`✓ Sent (${res.id.slice(0, 8)})`);
       setContent("");
       setTimeout(() => setStatus(null), 3000);
     } catch (err) {
-      setStatus(`✗ ${err}`);
+      setStatus(`✗ ${err instanceof Error ? err.message : String(err)}`);
     }
   };
 
@@ -184,7 +187,7 @@ function SendMessageForm() {
           style={inputStyle}
         />
       </Field>
-      <button onClick={send} disabled={!from || !content} style={btnPrimary(!from || !content)}>
+      <button onClick={send} disabled={!canSend} style={btnPrimary(!canSend)}>
         Send
       </button>
       {status && (
@@ -224,7 +227,7 @@ function SpawnAgentForm() {
       setCaps("");
       setTimeout(() => setStatus(null), 3000);
     } catch (err) {
-      setStatus(`✗ ${err}`);
+      setStatus(`✗ ${err instanceof Error ? err.message : String(err)}`);
     }
   };
 
@@ -232,7 +235,7 @@ function SpawnAgentForm() {
     try {
       await apiClient.shutdownAgent(id);
     } catch (err) {
-      console.error("Shutdown failed:", err);
+      console.error("Shutdown failed:", err instanceof Error ? err.message : err);
     }
   };
 
